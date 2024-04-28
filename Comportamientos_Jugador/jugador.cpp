@@ -275,81 +275,106 @@ void ComportamientoJugador::VisualizaPlan(const stateN0 &st, const list<Action> 
 list<Action> AnchuraSoloJugador(const stateN0 &inicio, const ubicacion &final,
 						const vector<vector<unsigned char>> &mapa)
 {
-	nodeN0 current_node;
-	list<nodeN0> frontier;
+	
+	list<nodeN0 *> frontier;
 	set<nodeN0> explored;
 	list<Action> plan;
-	current_node.st = inicio;
 
-	bool SolutionFound = (current_node.st.jugador.f == final.f and
-						  current_node.st.jugador.c == final.c);
+	nodeN0 root;
+	root.st = inicio;
+	root.parent = nullptr;
+
+	nodeN0 * current_node = &root;
+
+	bool SolutionFound = ((*current_node).st.jugador.f == final.f and
+						  (*current_node).st.jugador.c == final.c);
 
 	frontier.push_back(current_node);
 	
 
 	while (!frontier.empty() and !SolutionFound){
 		frontier.pop_front();
-		explored.insert(current_node);
+		explored.insert((*current_node));
 
 		// Generar hijo actWALK
-		nodeN0 child_walk = current_node;
-		child_walk.st = apply(actWALK, current_node.st, mapa);
-		child_walk.secuencia.push_back(actWALK);
-		if (child_walk.st.jugador.f == final.f and child_walk.st.jugador.c == final.c){
+		nodeN0 * child_walk = new nodeN0;
+		(*child_walk).st = apply(actWALK, (*current_node).st, mapa);
+
+		(*child_walk).last_action = actWALK;
+		(*child_walk).parent = current_node;
+		
+		if ((*child_walk).st.jugador.f == final.f and (*child_walk).st.jugador.c == final.c){
 			current_node = child_walk;
 			SolutionFound = true;
 		}
-		else if (explored.find(child_walk) == explored.end()){
+		else if (explored.find((*child_walk)) == explored.end()){
 			frontier.push_back(child_walk);
 		}
 
 		if (!SolutionFound){
 			// Generar hijo actRUN
-			nodeN0 child_run = current_node;
-			child_run.st = apply(actRUN, current_node.st, mapa);
-			child_run.secuencia.push_back(actRUN);
-			if (child_run.st.jugador.f == final.f and child_run.st.jugador.c == final.c){
+			nodeN0 * child_run = new nodeN0;
+			(*child_run).st = apply(actRUN, (*current_node).st, mapa);
+
+			(*child_run).last_action = actRUN;
+			(*child_run).parent = current_node;
+			
+			if ((*child_run).st.jugador.f == final.f and (*child_run).st.jugador.c == final.c){
 				current_node = child_run;
 				SolutionFound = true;
 			}
-			else if (explored.find(child_run) == explored.end()){
+			else if (explored.find((*child_run)) == explored.end()){
 				frontier.push_back(child_run);
 			}
 		}
 
 		if (!SolutionFound){
 			// Generar hijo actTURN_L
-			nodeN0 child_turnl = current_node;
-			child_turnl.st = apply(actTURN_L, current_node.st, mapa);
-			child_turnl.secuencia.push_back(actTURN_L);
-			if (explored.find(child_turnl) == explored.end()){
+			nodeN0 * child_turnl = new nodeN0;
+			(*child_turnl).st = apply(actTURN_L, (*current_node).st, mapa);
+
+			(*child_turnl).last_action = actTURN_L;
+			(*child_turnl).parent = current_node;
+			
+			if (explored.find((*child_turnl)) == explored.end()){
 				frontier.push_back(child_turnl);
 			}		
 			// Generar hijo actTURN_SR
-			nodeN0 child_turnsr = current_node;
-			child_turnsr.st = apply(actTURN_SR, current_node.st, mapa);
-			child_turnsr.secuencia.push_back(actTURN_SR);
-			if (explored.find(child_turnsr) == explored.end()){
+			nodeN0 * child_turnsr = new nodeN0;
+			(*child_turnsr).st = apply(actTURN_SR, (*current_node).st, mapa);
+
+			(*child_turnsr).last_action = actTURN_SR;
+			(*child_turnsr).parent = current_node;
+
+			if (explored.find((*child_turnsr)) == explored.end()){
 				frontier.push_back(child_turnsr);
 			}		
 		}
 
 		if (!SolutionFound and !frontier.empty()){
 			current_node = frontier.front();
-			while(!frontier.empty() and explored.find(current_node) != explored.end()){
+			while(!frontier.empty() and explored.find((*current_node)) != explored.end()){
 				frontier.pop_front();
 				if(!frontier.empty()){
 					current_node = frontier.front();
 				}
 			}
 
+			
+
 		}
 	}
 
 	if(SolutionFound){
-		plan = current_node.secuencia;
+		nodeN0 * cn = current_node;
+		while ((*cn).parent != nullptr){
+			plan.push_front((*cn).last_action);
+			
+			cn = (*cn).parent;
+		}
+		
 		cout << "Encontrado un plan: ";
-		PintaPlan(current_node.secuencia);
+		PintaPlan(plan);
 	}
 	
 	return plan;

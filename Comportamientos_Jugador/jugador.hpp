@@ -18,7 +18,9 @@ struct stateN0 {
 
 struct nodeN0 {
   stateN0 st;
-  list<Action> secuencia;
+  Action last_action;
+
+  nodeN0 * parent;
 
   bool operator==(const nodeN0 & n) const {
     return (st == n.st);
