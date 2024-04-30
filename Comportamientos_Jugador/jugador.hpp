@@ -4,6 +4,7 @@
 #include "comportamientos/comportamiento.hpp"
 
 #include <list>
+#include <unordered_map>
 
 struct state {
   ubicacion jugador;
@@ -99,16 +100,19 @@ struct stateN2 {
 
   Action ultimaOrdenColaborador;
 
-  int nivelBateria;
+  bool bikini_on;
+  bool zapatillas_on;
 
   bool operator==(const stateN2 & x) const {
     return (jugador == x.jugador and colaborador.f == x.colaborador.f and colaborador.c == x.colaborador.c and
-            nivelBateria == x.nivelBateria);
+            bikini_on == x.bikini_on and zapatillas_on == x.zapatillas_on);
   }
 };
 
 struct nodeN2 {
   stateN2 st;
+  int bateriaGastada;
+
   Action last_action;
 
   nodeN2 * parent;
@@ -124,8 +128,12 @@ struct nodeN2 {
       return true;
     } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula < b.st.jugador.brujula){
       return true;
-    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula < b.st.jugador.brujula and 
-               st.nivelBateria < b.st.nivelBateria){
+
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.bikini_on < b.st.bikini_on){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.bikini_on == b.st.bikini_on and st.zapatillas_on < b.st.zapatillas_on){
       return true;
     } else {
       return false;
@@ -135,8 +143,8 @@ struct nodeN2 {
 
 class ComparePointerNodeN2 {
 public:
-  bool operator()(const nodeN2* & x, const nodeN2* & y) {
-    if (x->st.nivelBateria >= y->st.nivelBateria) {
+  bool operator()(const nodeN2* x, const nodeN2* y) {
+    if (x->bateriaGastada >= y->bateriaGastada) {
       return (true);
     }
 
@@ -224,11 +232,17 @@ bool EsSolucion(const stateN1 & st, const ubicacion & final);
 // ========================================================================
 //                                NIVEL 2
 // ========================================================================
+const unordered_map<unsigned char, int> walkCost = {{'A', 100}, {'B', 50}, {'T', 2}, {'R', 1}, {'a', 10}, {'b', 15}};
+const unordered_map<unsigned char, int> runCost = {{'A', 150}, {'B', 75}, {'T', 3}, {'R', 1}, {'a', 15}, {'b', 25}};
+const unordered_map<unsigned char, int> turnLCost = {{'A', 30}, {'B', 7}, {'T', 2}, {'R', 1}, {'a', 5}, {'b', 1}};
+const unordered_map<unsigned char, int> turnSrCost = {{'A', 10}, {'B', 5}, {'T', 1}, {'R', 1}, {'a', 2}, {'b', 1}};
 
 list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
 
-stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > & mapa);
+stateN2 apply(const Action &a, const stateN2 &st, const vector<vector<unsigned char> > & mapa);
 
 bool EsSolucion(const stateN2 & st, const ubicacion & final);
+
+int CalculaCosteBateria (const stateN2 & st, const Action & accion, const vector<vector<unsigned char>> & mapa);
 
 #endif

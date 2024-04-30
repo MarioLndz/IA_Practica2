@@ -53,6 +53,14 @@ Action ComportamientoJugador::think(Sensores sensores)
 				break;
 
 			case 2:
+				stateN2 csN2;
+				csN2.jugador = c_state.jugador;
+				csN2.colaborador = c_state.colaborador;
+				csN2.ultimaOrdenColaborador = c_state.ultimaOrdenColaborador;
+				csN2.bikini_on = mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'K' ? true : false;
+				csN2.zapatillas_on = mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'D' ? true : false;
+
+				plan = CosteUniformeBateria(csN2, goal, mapaResultado);
 				break;
 
 			case 3:
@@ -625,8 +633,10 @@ list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, c
 
 	frontier.push_back(current_node);
 	
+	//int niter = 0;
 
 	while (!frontier.empty() and !SolutionFound){
+		//++niter;
 		frontier.pop_front();
 		explored.insert((*current_node));
 
@@ -790,6 +800,8 @@ list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, c
 		}
 	}
 
+	//cout << "Nº iter:\t" << niter << endl;
+
 	if(SolutionFound){
 		nodeN1 * cn = current_node;
 		while ((*cn).parent != nullptr){
@@ -815,10 +827,8 @@ list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, c
 //											NIVEL 2
 // ================================================================================================
 
-// TODO: Adaptar apply a nivel 2
-//	 	- Añadir costes acciones segun casilla
-stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > & mapa){
-	stateN0 st_result = st;
+stateN2 apply(const Action &a, const stateN2 &st, const vector<vector<unsigned char> > & mapa){
+	stateN2 st_result = st;
 	ubicacion sig_ubicacion, sig_ubicacion2;
 	switch (a)
 	{
@@ -827,6 +837,16 @@ stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned c
 		if (CasillaTransitable(sig_ubicacion, mapa) and 
 			!(sig_ubicacion.f == st.colaborador.f and sig_ubicacion.c == st.colaborador.c)){
 				st_result.jugador = sig_ubicacion;
+
+				if (!st_result.bikini_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'K') {
+					st_result.bikini_on = true;
+					st_result.zapatillas_on = false;
+				}
+
+				if (!st_result.zapatillas_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'D') {
+					st_result.zapatillas_on = true;
+					st_result.bikini_on = false;
+				}
 			}
 		break;
 	
@@ -838,6 +858,16 @@ stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned c
 				if (CasillaTransitable(sig_ubicacion2, mapa) and 
 					!(sig_ubicacion2.f == st.colaborador.f and sig_ubicacion2.c == st.colaborador.c)){
 						st_result.jugador = sig_ubicacion2;
+
+						if (!st_result.bikini_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'K') {
+							st_result.bikini_on = true;
+							st_result.zapatillas_on = false;
+						}
+
+						if (!st_result.zapatillas_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'D') {
+							st_result.zapatillas_on = true;
+							st_result.bikini_on = false;
+						}
 				}
 			}
 		break;
@@ -857,8 +887,47 @@ bool EsSolucion(const stateN2 & st, const ubicacion & final) {
 	return (st.jugador.f == final.f and st.jugador.c == final.c);
 }
 
+int CalculaCosteBateria (const stateN2 & st, const Action & accion, const vector<vector<unsigned char>> & mapa) {
+	unsigned char code_casilla = 'R';
+	unsigned char casilla_actual = mapa.at(st.jugador.f).at(st.jugador.c);
+
+	if (casilla_actual == 'A') {
+		if (st.bikini_on) {
+			code_casilla = 'a';
+		} else {
+			code_casilla = 'A';
+		}
+	
+	} else if (casilla_actual == 'B') {
+		if (st.zapatillas_on) {
+			code_casilla = 'b';
+		} else {
+			code_casilla = 'B';
+		}
+	} else if (casilla_actual == 'T') {
+		code_casilla = 'T';
+	}
+
+	int coste = 0;
+
+	if (accion == actWALK) {
+		coste = walkCost.at(code_casilla);
+
+	} else if (accion == actRUN) {
+		coste = runCost.at(code_casilla);
+
+	} else if (accion == actTURN_L) {
+		coste = turnLCost.at(code_casilla);
+
+	} else if (accion == actTURN_SR) {
+		coste = turnSrCost.at(code_casilla);
+
+	}
+
+	return (coste);
+}
+
 // TODO: Hacer sistema de busqueda por coste uniforme
-//		- Cambiar frontier por una priority queue
 list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa)
 {
 	vector< nodeN2 * > nodos_creados;
@@ -869,36 +938,41 @@ list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final
 	nodeN2 * current_node = new nodeN2;
 	(*current_node).st = inicio;
 	(*current_node).parent = nullptr;
+	(*current_node).last_action = actIDLE;
+	(*current_node).bateriaGastada = 0;
 
 	nodos_creados.push_back(current_node);
 
-	bool SolutionFound = ((*current_node).st.jugador.f == final.f and
-						  (*current_node).st.jugador.c == final.c);
-
 	frontier.push(current_node);
-	
+
+	bool SolutionFound = false;
+
+	int niter = 0;
 
 	while (!frontier.empty() and !SolutionFound){
+		++niter;
+
 		frontier.pop();
 		explored.insert((*current_node));
 
-		// Generar hijo actWALK
-		nodeN2 * child_walk = new nodeN2;
-		nodos_creados.push_back(child_walk);
-		(*child_walk).st = apply(actWALK, (*current_node).st, mapa);
-
-		(*child_walk).last_action = actWALK;
-		(*child_walk).parent = current_node;
-		
-		if (EsSolucion((*child_walk).st, final)){
-			current_node = child_walk;
+		if (EsSolucion((*current_node).st, final)) {
 			SolutionFound = true;
 		}
-		else if (explored.find((*child_walk)) == explored.end()){
-			frontier.push(child_walk);
-		}
 
-		if (!SolutionFound){
+		if (!SolutionFound) {
+			// Generar hijo actWALK
+			nodeN2 * child_walk = new nodeN2;
+			nodos_creados.push_back(child_walk);
+			(*child_walk).st = apply(actWALK, (*current_node).st, mapa);
+
+			(*child_walk).last_action = actWALK;
+			(*child_walk).parent = current_node;
+			(*child_walk).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteBateria((*current_node).st, actWALK, mapa);
+			
+			if (explored.find((*child_walk)) == explored.end()){
+				frontier.push(child_walk);
+			}
+
 			// Generar hijo actRUN
 			nodeN2 * child_run = new nodeN2;
 			nodos_creados.push_back(child_run);
@@ -906,17 +980,12 @@ list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final
 
 			(*child_run).last_action = actRUN;
 			(*child_run).parent = current_node;
+			(*child_run).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteBateria((*current_node).st, actRUN, mapa);
 			
-			if (EsSolucion((*child_run).st, final)){
-				current_node = child_run;
-				SolutionFound = true;
-			}
-			else if (explored.find((*child_run)) == explored.end()){
+			if (explored.find((*child_run)) == explored.end()){
 				frontier.push(child_run);
 			}
-		}
 
-		if (!SolutionFound){
 			// Generar hijo actTURN_L
 			nodeN2 * child_turnl = new nodeN2;
 			nodos_creados.push_back(child_turnl);
@@ -924,6 +993,7 @@ list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final
 
 			(*child_turnl).last_action = actTURN_L;
 			(*child_turnl).parent = current_node;
+			(*child_turnl).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteBateria((*current_node).st, actTURN_L, mapa);
 			
 			if (explored.find((*child_turnl)) == explored.end()){
 				frontier.push(child_turnl);
@@ -935,11 +1005,15 @@ list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final
 
 			(*child_turnsr).last_action = actTURN_SR;
 			(*child_turnsr).parent = current_node;
+			(*child_turnsr).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteBateria((*current_node).st, actTURN_SR, mapa);
 
 			if (explored.find((*child_turnsr)) == explored.end()){
 				frontier.push(child_turnsr);
-			}		
+			}
 		}
+
+
+
 
 		if (!SolutionFound and !frontier.empty()){
 			current_node = frontier.top();
@@ -954,7 +1028,9 @@ list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final
 
 		}
 	}
-
+	//cout << "Nº iter: " << niter << endl;
+	//cout << "Nº abiertos: " << frontier.size() << endl;
+	//cout << "Nº cerrados: " << explored.size() << endl;
 	if(SolutionFound){
 		nodeN2 * cn = current_node;
 		while ((*cn).parent != nullptr){
