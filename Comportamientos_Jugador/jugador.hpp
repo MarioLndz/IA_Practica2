@@ -5,6 +5,13 @@
 
 #include <list>
 
+struct state {
+  ubicacion jugador;
+  ubicacion colaborador;
+
+  Action ultimaOrdenColaborador;
+};
+
 struct stateN0 {
   ubicacion jugador;
   ubicacion colaborador;
@@ -39,6 +46,105 @@ struct nodeN0 {
   }
 };
 
+struct stateN1 {
+  ubicacion jugador;
+  ubicacion colaborador;
+
+  Action ultimaOrdenColaborador;
+
+  bool operator==(const stateN1 &x) const {
+    return (jugador == x.jugador and colaborador == x.colaborador and ultimaOrdenColaborador == x.ultimaOrdenColaborador);
+  }
+};
+
+struct nodeN1 {
+  stateN1 st;
+  Action last_action;
+
+  nodeN1 * parent;
+
+  bool operator==(const nodeN1 & n) const {
+    return (st == n.st);
+  }
+
+  bool operator<(const nodeN1 &b) const {
+    if (st.jugador.f < b.st.jugador.f) {
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c < b.st.jugador.c){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula < b.st.jugador.brujula){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f < b.st.colaborador.f){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c < b.st.colaborador.c){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c == b.st.colaborador.c and st.colaborador.brujula < b.st.colaborador.brujula){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c == b.st.colaborador.c and st.colaborador.brujula == b.st.colaborador.brujula and
+               st.ultimaOrdenColaborador < b.st.ultimaOrdenColaborador){
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
+struct stateN2 {
+  ubicacion jugador;
+  ubicacion colaborador;
+
+  Action ultimaOrdenColaborador;
+
+  int nivelBateria;
+
+  bool operator==(const stateN2 & x) const {
+    return (jugador == x.jugador and colaborador.f == x.colaborador.f and colaborador.c == x.colaborador.c and
+            nivelBateria == x.nivelBateria);
+  }
+};
+
+struct nodeN2 {
+  stateN2 st;
+  Action last_action;
+
+  nodeN2 * parent;
+
+  bool operator==(const nodeN2 & n) const {
+    return (st == n.st);
+  }
+
+  bool operator<(const nodeN2 &b) const {
+    if (st.jugador.f < b.st.jugador.f) {
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c < b.st.jugador.c){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula < b.st.jugador.brujula){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula < b.st.jugador.brujula and 
+               st.nivelBateria < b.st.nivelBateria){
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
+class ComparePointerNodeN2 {
+public:
+  bool operator()(const nodeN2* & x, const nodeN2* & y) {
+    if (x->st.nivelBateria >= y->st.nivelBateria) {
+      return (true);
+    }
+
+    return (false);
+  }
+};
+
+
 class ComportamientoJugador : public Comportamiento {
   public:
     ComportamientoJugador(unsigned int size) : Comportamiento(size) {
@@ -58,7 +164,7 @@ class ComportamientoJugador : public Comportamiento {
     int interact(Action accion, int valor);
 
     /** Permite pintar sobre el mapa del simulador el plan partiendo desde el estado st*/
-    void VisualizaPlan(const stateN0 &st, const list<Action> &plan);
+    void VisualizaPlan(const state &st, const list<Action> &plan);
 
   
   private:
@@ -68,21 +174,20 @@ class ComportamientoJugador : public Comportamiento {
     list<Action> plan;
     bool hayPlan;
 
-    stateN0 c_state;
+    state c_state;
     ubicacion goal;
 
 };
+
+// ========================================================================
+//                                Comunes
+// ========================================================================
 
 /** Devuelve si una ubicación en el mapa es transitable para el agente*/
 bool CasillaTransitable (const ubicacion & x, const vector<vector<unsigned char>> & mapa);
 
 /** Devuelve la ubicación siguiente según el avance del agente*/
 ubicacion NextCasilla(const ubicacion &pos);
-
-/** Devuelve el estado que se genera si el agente puede avanzar.
- * Si no puede avanzar, devuelve como salida el mismo estado de entrada
-*/
-stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > mapa);
 
 /**Sobrecarga de la función Find para buscar en lista de nodeN0*/
 bool Find(const stateN0 &item, const list<nodeN0> &lista);
@@ -92,6 +197,38 @@ void AnulaMatriz(vector<vector<unsigned char> > &matriz);
 
 void PintaPlan(const list<Action> &plan);
 
+// ========================================================================
+//                                NIVEL 0
+// ========================================================================
+
+/** Devuelve el estado que se genera si el agente puede avanzar.
+ * Si no puede avanzar, devuelve como salida el mismo estado de entrada
+*/
+stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > & mapa);
+
+bool EsSolucion(const stateN0 & st, const ubicacion & final);
+
 list<Action> AnchuraSoloJugador(const stateN0 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
+
+// ========================================================================
+//                                NIVEL 1
+// ========================================================================
+stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned char>> & mapa);
+
+bool VeoColaborador(const stateN1 & st);
+
+list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
+
+bool EsSolucion(const stateN1 & st, const ubicacion & final);
+
+// ========================================================================
+//                                NIVEL 2
+// ========================================================================
+
+list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
+
+stateN0 apply(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > & mapa);
+
+bool EsSolucion(const stateN2 & st, const ubicacion & final);
 
 #endif
