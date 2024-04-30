@@ -4,7 +4,7 @@
 #include "comportamientos/comportamiento.hpp"
 
 #include <list>
-#include <unordered_map>
+#include <map>
 
 struct state {
   ubicacion jugador;
@@ -232,10 +232,10 @@ bool EsSolucion(const stateN1 & st, const ubicacion & final);
 // ========================================================================
 //                                NIVEL 2
 // ========================================================================
-const unordered_map<unsigned char, int> walkCost = {{'A', 100}, {'B', 50}, {'T', 2}, {'R', 1}, {'a', 10}, {'b', 15}};
-const unordered_map<unsigned char, int> runCost = {{'A', 150}, {'B', 75}, {'T', 3}, {'R', 1}, {'a', 15}, {'b', 25}};
-const unordered_map<unsigned char, int> turnLCost = {{'A', 30}, {'B', 7}, {'T', 2}, {'R', 1}, {'a', 5}, {'b', 1}};
-const unordered_map<unsigned char, int> turnSrCost = {{'A', 10}, {'B', 5}, {'T', 1}, {'R', 1}, {'a', 2}, {'b', 1}};
+const map<unsigned char, int> walkCost = {{'A', 100}, {'B', 50}, {'T', 2}, {'R', 1}, {'a', 10}, {'b', 15}};
+const map<unsigned char, int> runCost = {{'A', 150}, {'B', 75}, {'T', 3}, {'R', 1}, {'a', 15}, {'b', 25}};
+const map<unsigned char, int> turnLCost = {{'A', 30}, {'B', 7}, {'T', 2}, {'R', 1}, {'a', 5}, {'b', 1}};
+const map<unsigned char, int> turnSrCost = {{'A', 10}, {'B', 5}, {'T', 1}, {'R', 1}, {'a', 2}, {'b', 1}};
 
 list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
 
