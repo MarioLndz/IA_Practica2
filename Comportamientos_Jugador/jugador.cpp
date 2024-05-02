@@ -57,8 +57,14 @@ Action ComportamientoJugador::think(Sensores sensores)
 				csN2.jugador = c_state.jugador;
 				csN2.colaborador = c_state.colaborador;
 				csN2.ultimaOrdenColaborador = c_state.ultimaOrdenColaborador;
-				csN2.bikini_on = mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'K' ? true : false;
-				csN2.zapatillas_on = mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'D' ? true : false;
+				
+				if (mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'K') {
+					csN2.potenciador = bikini_on;
+				} else if (mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'D') {
+					csN2.potenciador = zapatillas_on;
+				} else {
+					csN2.potenciador = items_off;
+				}
 
 				plan = CosteUniformeBateria(csN2, goal, mapaResultado);
 				break;
@@ -838,14 +844,12 @@ stateN2 apply(const Action &a, const stateN2 &st, const vector<vector<unsigned c
 			!(sig_ubicacion.f == st.colaborador.f and sig_ubicacion.c == st.colaborador.c)){
 				st_result.jugador = sig_ubicacion;
 
-				if (!st_result.bikini_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'K') {
-					st_result.bikini_on = true;
-					st_result.zapatillas_on = false;
+				if (st_result.potenciador != bikini_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'K') {
+					st_result.potenciador = bikini_on;
 				}
 
-				if (!st_result.zapatillas_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'D') {
-					st_result.zapatillas_on = true;
-					st_result.bikini_on = false;
+				if (st_result.potenciador != zapatillas_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'D') {
+					st_result.potenciador = zapatillas_on;
 				}
 			}
 		break;
@@ -859,14 +863,12 @@ stateN2 apply(const Action &a, const stateN2 &st, const vector<vector<unsigned c
 					!(sig_ubicacion2.f == st.colaborador.f and sig_ubicacion2.c == st.colaborador.c)){
 						st_result.jugador = sig_ubicacion2;
 
-						if (!st_result.bikini_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'K') {
-							st_result.bikini_on = true;
-							st_result.zapatillas_on = false;
+						if (st_result.potenciador != bikini_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'K') {
+							st_result.potenciador = bikini_on;
 						}
 
-						if (!st_result.zapatillas_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'D') {
-							st_result.zapatillas_on = true;
-							st_result.bikini_on = false;
+						if (st_result.potenciador != zapatillas_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'D') {
+							st_result.potenciador = zapatillas_on;
 						}
 				}
 			}
@@ -892,14 +894,14 @@ int CalculaCosteBateria (const stateN2 & st, const Action & accion, const vector
 	unsigned char casilla_actual = mapa.at(st.jugador.f).at(st.jugador.c);
 
 	if (casilla_actual == 'A') {
-		if (st.bikini_on) {
+		if (st.potenciador == bikini_on) {
 			code_casilla = 'a';
 		} else {
 			code_casilla = 'A';
 		}
 	
 	} else if (casilla_actual == 'B') {
-		if (st.zapatillas_on) {
+		if (st.potenciador == zapatillas_on) {
 			code_casilla = 'b';
 		} else {
 			code_casilla = 'B';

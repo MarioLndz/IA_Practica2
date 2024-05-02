@@ -94,18 +94,19 @@ struct nodeN1 {
   }
 };
 
+enum item_state {items_off, bikini_on, zapatillas_on};
+
 struct stateN2 {
   ubicacion jugador;
   ubicacion colaborador;
 
   Action ultimaOrdenColaborador;
 
-  bool bikini_on;
-  bool zapatillas_on;
+  item_state potenciador;
 
   bool operator==(const stateN2 & x) const {
     return (jugador == x.jugador and colaborador.f == x.colaborador.f and colaborador.c == x.colaborador.c and
-            bikini_on == x.bikini_on and zapatillas_on == x.zapatillas_on);
+            potenciador == x.potenciador);
   }
 };
 
@@ -130,10 +131,7 @@ struct nodeN2 {
       return true;
 
     } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
-               st.bikini_on < b.st.bikini_on){
-      return true;
-    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
-               st.bikini_on == b.st.bikini_on and st.zapatillas_on < b.st.zapatillas_on){
+               st.potenciador < b.st.potenciador){
       return true;
     } else {
       return false;
