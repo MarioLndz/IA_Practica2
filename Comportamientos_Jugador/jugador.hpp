@@ -5,6 +5,7 @@
 
 #include <list>
 #include <map>
+#include <set>
 
 struct state {
   ubicacion jugador;
@@ -249,6 +250,12 @@ class ComportamientoJugador : public Comportamiento {
     /** Permite pintar sobre el mapa del simulador el plan partiendo desde el estado st*/
     void VisualizaPlan(const state &st, const list<Action> &plan);
 
+    // NIVEL 4
+    void ActualizaState(const Action & last_action);
+
+    void ActualizaUbicacion(ubicacion & ubi, const Action & last_action);
+
+    bool PonerTerrenoEnMatriz(const vector<unsigned char> & terreno, const ubicacion & st, vector<vector<unsigned char>> & matriz);
   
   private:
     void _init();
@@ -261,6 +268,16 @@ class ComportamientoJugador : public Comportamiento {
     ubicacion goal;
 
     Action last_action;
+    bool ubicado;
+
+    vector<ubicacion> casillasRecarga;
+
+    const int MAX_BATERIA = 3000;
+    const int MAX_CICLOS = 3000;
+
+    bool buscoBateria;
+    bool recargaBateria;
+
 
 };
 
@@ -342,6 +359,25 @@ int HeuristicaNormaMaximo (const stateN3 & st, const ubicacion & final);
 int CalculaHeuristica (const stateN3 & st, const ubicacion & final);
 
 void ActualizaBateriaHijos(const vector<nodeN3> & childs, int nuevo_coste_bateria);
+
+
+
+// ================================================================================
+
+
+list<Action> AnchuraMenosPasos(const stateN0 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
+
+stateN0 applyMP(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > & mapa);
+
+ubicacion CasillaExploradaMasCercana (const ubicacion & jugador, const ubicacion & objetivo, const vector<vector<unsigned char>> & mapa);
+
+bool PosicionValidaEnMapa (const int & posF, const int & posC, const vector<vector<unsigned char>> & mapa);
+
+int CalculaDistancia (const ubicacion & jugador, const ubicacion & casilla_mas_cercana);
+
+list<Action> AnchuraJugadorSinLimites(const stateN0 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
+
+stateN0 applySL(const Action &a, const stateN0 &st, const vector<vector<unsigned char> > & mapa);
 
 
 #endif
