@@ -151,17 +151,94 @@ public:
 };
 
 
+struct stateN3 {
+  ubicacion jugador;
+  ubicacion colaborador;
+
+  Action ultimaOrdenColaborador;
+
+  item_state jg_item;
+  item_state clb_item;
+
+  bool operator==(const stateN3 & x) const {
+    return (jugador == x.jugador and colaborador == x.colaborador and ultimaOrdenColaborador == x.ultimaOrdenColaborador and 
+            jg_item == x.jg_item and clb_item == x.clb_item);
+  }
+};
+
+struct nodeN3 {
+  stateN3 st;
+  mutable int bateriaGastada;
+  int heuristica;
+
+  Action last_action;
+
+  mutable nodeN3 * parent;
+  vector<nodeN3*> childs;
+
+  bool operator==(const nodeN3 & n) const {
+    return (st == n.st);
+  }
+
+  bool operator<(const nodeN3 &b) const {
+    if (st.jugador.f < b.st.jugador.f) {
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c < b.st.jugador.c){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula < b.st.jugador.brujula){
+      return true;
+
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f < b.st.colaborador.f){
+      return true;
+
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c < b.st.colaborador.c){
+      return true;
+
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c == b.st.colaborador.c and st.colaborador.brujula < b.st.colaborador.brujula){
+      return true;
+
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c == b.st.colaborador.c and st.colaborador.brujula == b.st.colaborador.brujula and
+               st.ultimaOrdenColaborador < b.st.ultimaOrdenColaborador){
+      return true;
+
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c == b.st.colaborador.c and st.colaborador.brujula == b.st.colaborador.brujula and 
+               st.ultimaOrdenColaborador == b.st.ultimaOrdenColaborador and st.jg_item < b.st.jg_item){
+      return true;
+    } else if (st.jugador.f == b.st.jugador.f and st.jugador.c == b.st.jugador.c and st.jugador.brujula == b.st.jugador.brujula and
+               st.colaborador.f == b.st.colaborador.f and st.colaborador.c == b.st.colaborador.c and st.colaborador.brujula == b.st.colaborador.brujula and 
+               st.ultimaOrdenColaborador == b.st.ultimaOrdenColaborador and st.jg_item == b.st.jg_item and st.clb_item < b.st.clb_item){
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
+class ComparePointerNodeN3 {
+public:
+  bool operator()(const nodeN3* x, const nodeN3* y) {
+    if ((x->bateriaGastada + x->heuristica) >= (y->bateriaGastada + y->heuristica)) {
+      return (true);
+    }
+
+    return (false);
+  }
+};
+
 class ComportamientoJugador : public Comportamiento {
   public:
     ComportamientoJugador(unsigned int size) : Comportamiento(size) {
       // Inicializar Variables de Estado
-      //_init();
-      hayPlan = false;
+      _init();
     }
     ComportamientoJugador(std::vector< std::vector< unsigned char> > mapaR) : Comportamiento(mapaR) {
       // Inicializar Variables de Estado
-      //_init();
-      hayPlan = false;
+      _init();
     }
     ComportamientoJugador(const ComportamientoJugador & comport) : Comportamiento(comport){}
     ~ComportamientoJugador(){}
@@ -183,11 +260,17 @@ class ComportamientoJugador : public Comportamiento {
     state c_state;
     ubicacion goal;
 
+    Action last_action;
+
 };
 
 // ========================================================================
 //                                Comunes
 // ========================================================================
+const map<unsigned char, int> walkCost = {{'A', 100}, {'B', 50}, {'T', 2}, {'R', 1}, {'a', 10}, {'b', 15}};
+const map<unsigned char, int> runCost = {{'A', 150}, {'B', 75}, {'T', 3}, {'R', 1}, {'a', 15}, {'b', 25}};
+const map<unsigned char, int> turnLCost = {{'A', 30}, {'B', 7}, {'T', 2}, {'R', 1}, {'a', 5}, {'b', 1}};
+const map<unsigned char, int> turnSrCost = {{'A', 10}, {'B', 5}, {'T', 1}, {'R', 1}, {'a', 2}, {'b', 1}};
 
 /** Devuelve si una ubicación en el mapa es transitable para el agente*/
 bool CasillaTransitable (const ubicacion & x, const vector<vector<unsigned char>> & mapa);
@@ -219,7 +302,8 @@ list<Action> AnchuraSoloJugador(const stateN0 &inicio, const ubicacion &final, c
 // ========================================================================
 //                                NIVEL 1
 // ========================================================================
-stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned char>> & mapa);
+
+stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned char>> & mapa, bool check_CLB);
 
 bool VeoColaborador(const stateN1 & st);
 
@@ -230,10 +314,6 @@ bool EsSolucion(const stateN1 & st, const ubicacion & final);
 // ========================================================================
 //                                NIVEL 2
 // ========================================================================
-const map<unsigned char, int> walkCost = {{'A', 100}, {'B', 50}, {'T', 2}, {'R', 1}, {'a', 10}, {'b', 15}};
-const map<unsigned char, int> runCost = {{'A', 150}, {'B', 75}, {'T', 3}, {'R', 1}, {'a', 15}, {'b', 25}};
-const map<unsigned char, int> turnLCost = {{'A', 30}, {'B', 7}, {'T', 2}, {'R', 1}, {'a', 5}, {'b', 1}};
-const map<unsigned char, int> turnSrCost = {{'A', 10}, {'B', 5}, {'T', 1}, {'R', 1}, {'a', 2}, {'b', 1}};
 
 list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa);
 
@@ -242,5 +322,26 @@ stateN2 apply(const Action &a, const stateN2 &st, const vector<vector<unsigned c
 bool EsSolucion(const stateN2 & st, const ubicacion & final);
 
 int CalculaCosteBateria (const stateN2 & st, const Action & accion, const vector<vector<unsigned char>> & mapa);
+
+// ========================================================================
+//                                NIVEL 3
+// ========================================================================
+
+int CalculaCosteAccion (const stateN3 & st, const Action & accion, const Action & accion_clb, const vector<vector<unsigned char>> & mapa);
+
+bool EsSolucion(const stateN3 & st, const ubicacion & final);
+
+stateN3 apply(const Action &a, const stateN3 &st, const vector<vector<unsigned char> > & mapa, bool check_CLB);
+
+bool VeoColaborador(const stateN3 & st);
+
+list<Action> Algoritmo_A_Estrella (const stateN3 & inicio, const ubicacion & final, const vector<vector<unsigned char>> & mapa);
+
+int HeuristicaNormaMaximo (const stateN3 & st, const ubicacion & final);
+
+int CalculaHeuristica (const stateN3 & st, const ubicacion & final);
+
+void ActualizaBateriaHijos(const vector<nodeN3> & childs, int nuevo_coste_bateria);
+
 
 #endif

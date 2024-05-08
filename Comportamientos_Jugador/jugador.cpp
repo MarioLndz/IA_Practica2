@@ -70,12 +70,36 @@ Action ComportamientoJugador::think(Sensores sensores)
 				break;
 
 			case 3:
+				stateN3 csN3;
+				csN3.jugador = c_state.jugador;
+				csN3.colaborador = c_state.colaborador;
+				csN3.ultimaOrdenColaborador = c_state.ultimaOrdenColaborador;
+
+				if (mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'K') {
+					csN3.jg_item = bikini_on;
+				} else if (mapaResultado.at(c_state.jugador.f).at(c_state.jugador.c) == 'D') {
+					csN3.jg_item = zapatillas_on;
+				} else {
+					csN3.jg_item = items_off;
+				}
+
+				if (mapaResultado.at(c_state.colaborador.f).at(c_state.colaborador.c) == 'K') {
+					csN3.clb_item = bikini_on;
+				} else if (mapaResultado.at(c_state.colaborador.f).at(c_state.colaborador.c) == 'D') {
+					csN3.clb_item = zapatillas_on;
+				} else {
+					csN3.clb_item = items_off;
+				}
+
+				plan = Algoritmo_A_Estrella(csN3, goal, mapaResultado);
 				break;
 			}
 
 			if (plan.size() > 0){
 				VisualizaPlan(c_state, plan);
 				hayPlan = true;
+			} else {
+				cout << "No se ha encontrado plan" << endl;
 			}
 		}
 
@@ -90,6 +114,7 @@ Action ComportamientoJugador::think(Sensores sensores)
 	
 	} else {
 		// NIVEL 4
+
 	}
 
 	return accion;
@@ -103,6 +128,7 @@ int ComportamientoJugador::interact(Action accion, int valor)
 
 void ComportamientoJugador::_init(){
 	hayPlan = false;
+	last_action = actIDLE;
 }
 
 /** Devuelve si una ubicación en el mapa es transitable para el agente*/
@@ -423,7 +449,8 @@ list<Action> AnchuraSoloJugador(const stateN0 &inicio, const ubicacion &final, c
 //										NIVEL 1
 // ================================================================================================
 
-stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned char> > & mapa){
+stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned char> > & mapa, bool check_CLB = true){
+	
 	stateN1 st_result = st;
 
 	// Actualizo posicion jugador
@@ -463,15 +490,15 @@ stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned c
 		break;
 
 	case (act_CLB_WALK):
-		if (VeoColaborador(st)) st_result.ultimaOrdenColaborador = act_CLB_WALK;
+		if (!check_CLB || VeoColaborador(st)) st_result.ultimaOrdenColaborador = act_CLB_WALK;
 		break;
 
 	case (act_CLB_TURN_SR):
-		if (VeoColaborador(st)) st_result.ultimaOrdenColaborador = act_CLB_TURN_SR;
+		if (!check_CLB || VeoColaborador(st)) st_result.ultimaOrdenColaborador = act_CLB_TURN_SR;
 		break;
 
 	case(act_CLB_STOP):
-		if (VeoColaborador(st)) st_result.ultimaOrdenColaborador = act_CLB_STOP;
+		if (!check_CLB || VeoColaborador(st)) st_result.ultimaOrdenColaborador = act_CLB_STOP;
 		break;
 	}
 
@@ -483,7 +510,7 @@ stateN1 apply(const Action &a, const stateN1 &st, const vector<vector<unsigned c
 		CLB_sig_ubicacion = NextCasilla(st.colaborador);
 
 		if (CasillaTransitable(CLB_sig_ubicacion, mapa) and 
-			!(CLB_sig_ubicacion.f == st.jugador.f and CLB_sig_ubicacion.c == st.jugador.c)){
+			!(CLB_sig_ubicacion.f == st_result.jugador.f and CLB_sig_ubicacion.c == st_result.jugador.c)){
 				st_result.colaborador = CLB_sig_ubicacion;
 			}
 
@@ -662,13 +689,16 @@ list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, c
 			frontier.push_back(child_idle);
 		}
 
-		if (!SolutionFound) {
+		bool veoCLB = VeoColaborador((*current_node).st);
+
+		if (!SolutionFound and veoCLB) {
 			// Genero hijo actCLB_WALK
 			nodeN1 * child_CLBWalk = new nodeN1;
 			
-			(*child_CLBWalk).st = apply(act_CLB_WALK, (*current_node).st, mapa);
+			(*child_CLBWalk).st = apply(act_CLB_WALK, (*current_node).st, mapa, false);
 
 			if ((*child_CLBWalk) == (*child_idle)) {
+				cout << "PRUEBA" << endl;
 				delete child_CLBWalk;
 			} else {
 				nodos_creados.push_back(child_CLBWalk);
@@ -685,10 +715,10 @@ list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, c
 			}
 
 		}
-		if (!SolutionFound) {
+		if (!SolutionFound and veoCLB) {
 			// Genero hijo actCLB_TURNSR
 			nodeN1 * child_CLBTurnSr = new nodeN1;
-			(*child_CLBTurnSr).st = apply(act_CLB_TURN_SR, (*current_node).st, mapa);
+			(*child_CLBTurnSr).st = apply(act_CLB_TURN_SR, (*current_node).st, mapa, false);
 
 			if ((*child_CLBTurnSr) == (*child_idle)) {
 				delete child_CLBTurnSr;
@@ -708,10 +738,10 @@ list<Action> AnchuraColaborador(const stateN1 &inicio, const ubicacion &final, c
 			}
 		}
 
-		if (!SolutionFound) {
+		if (!SolutionFound and veoCLB) {
 			// Genero hijo actCLB_STOP
 			nodeN1 * child_CLBStop = new nodeN1;
-			(*child_CLBStop).st = apply(act_CLB_STOP, (*current_node).st, mapa);
+			(*child_CLBStop).st = apply(act_CLB_STOP, (*current_node).st, mapa, false);
 
 			if ((*child_CLBStop) == (*child_idle)) {
 				delete child_CLBStop;
@@ -929,7 +959,6 @@ int CalculaCosteBateria (const stateN2 & st, const Action & accion, const vector
 	return (coste);
 }
 
-// TODO: Hacer sistema de busqueda por coste uniforme
 list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final, const vector<vector<unsigned char>> &mapa)
 {
 	vector< nodeN2 * > nodos_creados;
@@ -1051,4 +1080,623 @@ list<Action> CosteUniformeBateria (const stateN2 &inicio, const ubicacion &final
 	}
 	
 	return plan;
+}
+
+// ================================================================================================
+//											NIVEL 3
+// ================================================================================================
+
+bool VeoColaborador(const stateN3 & st) {
+	bool lo_veo = false;
+
+	if (st.jugador.brujula%2 == 0){ // Norte - Este - Sur - Oeste
+		int mult = 1;
+
+		if (st.jugador.brujula == sur || st.jugador.brujula == oeste) mult = -1;
+
+		if (st.jugador.brujula == norte || st.jugador.brujula == sur) {	// Norte - Sur
+			pair<int, int> x1 (st.jugador.f - (1*mult), st.jugador.c - 1);
+			pair<int, int> x2 (st.jugador.f - (3*mult), st.jugador.c + 1);
+
+			if (!PerteneceA(st.colaborador, x1, x2)) {
+				x1 = pair<int, int>(st.jugador.f - (2*mult), st.jugador.c - 3);
+				x2 = pair<int, int>(x1.first - (1*mult), x1.second + 1);
+
+				if (st.colaborador.f != x1.first or st.colaborador.c != x1.second) {
+					if (!PerteneceA(st.colaborador, x1, x2)) {
+						x1.second += 6;
+						x2.second += 4;
+
+						if ((st.colaborador.f != x1.first or st.colaborador.c != x1.second) and PerteneceA(st.colaborador, x1, x2)) {
+							lo_veo = true;
+						}
+					} else {
+						lo_veo = true;
+					}
+				}
+
+			} else {
+				lo_veo = true;
+			}
+
+		} else {	// Este - Oeste
+			pair<int, int> x1 (st.jugador.f - 1, st.jugador.c + (1*mult));
+			pair<int, int> x2 (st.jugador.f + 1, st.jugador.c + (3*mult));
+
+			if (!PerteneceA(st.colaborador, x1, x2)) {
+				x1 = pair<int, int>(st.jugador.f - 3, st.jugador.c + (2*mult));
+				x2 = pair<int, int>(x1.first + 1, x1.second + (1*mult));
+
+				if (st.colaborador.f != x1.first or st.colaborador.c != x1.second) {
+					if (!PerteneceA(st.colaborador, x1, x2)) {
+						x1.first += 6;
+						x2.first += 4;
+
+						if ((st.colaborador.f != x1.first or st.colaborador.c != x1.second) and PerteneceA(st.colaborador, x1, x2)) {
+							lo_veo = true;
+						}
+					} else {
+						lo_veo = true;
+					}
+				}
+				
+			} else {
+				lo_veo = true;
+			}
+
+		}
+	} else {	// Diagonales
+		int i = 1;
+		int j = 1;
+
+		if (st.jugador.brujula == sureste || st.jugador.brujula == suroeste) i = -1;
+		if (st.jugador.brujula == suroeste || st.jugador.brujula == noroeste) j = -1;
+
+		pair<int, int> x1 (st.jugador.f, st.jugador.c);
+		pair<int, int> x2 (st.jugador.f - (3*i), st.jugador.c + (3*j));
+		
+		if (PerteneceA(st.colaborador, x1, x2)) {
+			lo_veo = true;
+			
+		}
+	}
+
+	return (lo_veo);
+}
+
+stateN3 apply(const Action &a, const stateN3 &st, const vector<vector<unsigned char> > & mapa, bool check_CLB = true){
+	
+	stateN3 st_result = st;
+
+	// Actualizo posicion jugador
+
+	ubicacion sig_ubicacion, sig_ubicacion2;
+
+	switch (a)
+	{
+	case actWALK: //si prox casilla es transitable y no está ocupada por el colaborador
+		sig_ubicacion = NextCasilla(st.jugador);
+		if (CasillaTransitable(sig_ubicacion, mapa) and 
+			!(sig_ubicacion.f == st.colaborador.f and sig_ubicacion.c == st.colaborador.c)){
+				st_result.jugador = sig_ubicacion;
+
+				if (st.jg_item != bikini_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'K') {
+					st_result.jg_item = bikini_on;
+				}
+
+				if (st.jg_item != zapatillas_on and mapa.at(sig_ubicacion.f).at(sig_ubicacion.c) == 'D') {
+					st_result.jg_item = zapatillas_on;
+				}
+			}
+
+		
+		break;
+	
+	case actRUN: //si prox 2 casillas son transitables y no está ocupada por el colaborador
+		sig_ubicacion = NextCasilla(st.jugador);
+		if (CasillaTransitable(sig_ubicacion, mapa) and 
+			!(sig_ubicacion.f == st.colaborador.f and sig_ubicacion.c == st.colaborador.c)){
+				sig_ubicacion2 = NextCasilla(sig_ubicacion);
+				if (CasillaTransitable(sig_ubicacion2, mapa) and 
+					!(sig_ubicacion2.f == st.colaborador.f and sig_ubicacion2.c == st.colaborador.c)){
+						st_result.jugador = sig_ubicacion2;
+
+						if (st.jg_item != bikini_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'K') {
+							st_result.jg_item = bikini_on;
+						}
+
+						if (st.jg_item != zapatillas_on and mapa.at(sig_ubicacion2.f).at(sig_ubicacion2.c) == 'D') {
+							st_result.jg_item = zapatillas_on;
+						}
+				}
+			}
+		break;
+
+	case actTURN_L:
+		st_result.jugador.brujula = static_cast<Orientacion>((st_result.jugador.brujula+6)%8);
+		break;
+
+	case actTURN_SR:
+		st_result.jugador.brujula = static_cast<Orientacion>((st_result.jugador.brujula+1)%8);
+		break;
+
+	case (act_CLB_WALK):
+		if (!check_CLB or VeoColaborador(st)){
+			st_result.ultimaOrdenColaborador = act_CLB_WALK;
+		}
+		break;
+
+	case (act_CLB_TURN_SR):
+		if (!check_CLB or VeoColaborador(st)) {
+			st_result.ultimaOrdenColaborador = act_CLB_TURN_SR;
+		}
+		break;
+
+	case(act_CLB_STOP):
+		if (!check_CLB or VeoColaborador(st)) {
+			st_result.ultimaOrdenColaborador = act_CLB_STOP;
+		}
+		break;
+	}
+
+	// Actualizo posicion colaborador
+	ubicacion CLB_sig_ubicacion;
+
+	switch (st_result.ultimaOrdenColaborador){
+	case (act_CLB_WALK):
+		CLB_sig_ubicacion = NextCasilla(st.colaborador);
+
+		if (CasillaTransitable(CLB_sig_ubicacion, mapa) and 
+			!(CLB_sig_ubicacion.f == st_result.jugador.f and CLB_sig_ubicacion.c == st_result.jugador.c)){
+				st_result.colaborador = CLB_sig_ubicacion;
+
+				if (st.clb_item != bikini_on and mapa.at(CLB_sig_ubicacion.f).at(CLB_sig_ubicacion.c) == 'K') {
+					st_result.clb_item = bikini_on;
+				}
+
+				if (st.clb_item != zapatillas_on and mapa.at(CLB_sig_ubicacion.f).at(CLB_sig_ubicacion.c) == 'D') {
+					st_result.clb_item = zapatillas_on;
+				}
+			} else {
+				st_result = st;
+			}
+
+		break;
+
+	case (act_CLB_TURN_SR):
+		st_result.colaborador.brujula = static_cast<Orientacion>((st_result.colaborador.brujula+1)%8);
+		break;
+
+	}
+
+
+	return st_result;
+}
+
+int CalculaCosteAccion (const stateN3 & st, const Action & accion, const Action & accion_clb, const vector<vector<unsigned char>> & mapa) {
+	unsigned char code_casilla = 'R';
+	unsigned char casilla_actual = mapa.at(st.jugador.f).at(st.jugador.c);
+
+	if (casilla_actual == 'A') {
+		if (st.jg_item == bikini_on) {
+			code_casilla = 'a';
+		} else {
+			code_casilla = 'A';
+		}
+	
+	} else if (casilla_actual == 'B') {
+		if (st.jg_item == zapatillas_on) {
+			code_casilla = 'b';
+		} else {
+			code_casilla = 'B';
+		}
+	} else if (casilla_actual == 'T') {
+		code_casilla = 'T';
+	}
+
+	int coste = 0;
+
+	if (accion == actWALK) {
+		coste = walkCost.at(code_casilla);
+
+	} else if (accion == actRUN) {
+		coste = runCost.at(code_casilla);
+
+	} else if (accion == actTURN_L) {
+		coste = turnLCost.at(code_casilla);
+
+	} else if (accion == actTURN_SR) {
+		coste = turnSrCost.at(code_casilla);
+
+	}
+
+	// Calculo Bateria Colaborador
+	code_casilla = 'R';
+	casilla_actual = mapa.at(st.colaborador.f).at(st.colaborador.c);
+
+	if (casilla_actual == 'A') {
+		if (st.clb_item == bikini_on) {
+			code_casilla = 'a';
+		} else {
+			code_casilla = 'A';
+		}
+	
+	} else if (casilla_actual == 'B') {
+		if (st.clb_item == zapatillas_on) {
+			code_casilla = 'b';
+		} else {
+			code_casilla = 'B';
+		}
+	} else if (casilla_actual == 'T') {
+		code_casilla = 'T';
+	}
+
+	
+	if (accion_clb == act_CLB_WALK) {
+		coste += walkCost.at(code_casilla);
+
+	} else if (accion_clb == act_CLB_TURN_SR) {
+		coste += turnSrCost.at(code_casilla);
+	}
+
+	return (coste);
+}
+
+
+bool EsSolucion(const stateN3 & st, const ubicacion & final) {
+	return (st.colaborador.f == final.f and st.colaborador.c == final.c);
+}
+
+int HeuristicaNormaMaximo (const stateN3 & st, const ubicacion & final) {
+	int x1 = abs(st.colaborador.f - final.f);
+	int x2 = abs(st.colaborador.c - final.c);
+
+	if (x1 >= x2) {
+		return (x1);
+	} else {
+		return (x2);
+	}
+}
+
+void ActualizaBateriaHijos(const vector<nodeN3*> & childs, int diff){
+
+	for (auto it = childs.begin(); it != childs.end(); it++) {
+		(*it)->bateriaGastada -= diff;
+		ActualizaBateriaHijos((*it)->childs, diff);
+	}
+}
+
+
+list<Action> Algoritmo_A_Estrella (const stateN3 & inicio, const ubicacion & final, const vector<vector<unsigned char>> & mapa) {
+	vector< nodeN3 * > nodos_creados;
+
+	priority_queue<nodeN3 *, vector<nodeN3*>, ComparePointerNodeN3> frontier;
+	set<nodeN3> explored;
+	list<Action> plan;
+
+	nodeN3 * current_node = new nodeN3;
+	nodos_creados.push_back(current_node);
+
+	(*current_node).st = inicio;
+	(*current_node).parent = nullptr;
+	(*current_node).last_action = actIDLE;
+	(*current_node).bateriaGastada = 0;
+
+	bool SolutionFound = false;
+
+	frontier.push(current_node);
+	
+	//int niter = 0;
+
+	set<nodeN3>::iterator aux;
+
+	while (!frontier.empty() and !SolutionFound){
+		//++niter;
+		frontier.pop();
+
+		explored.insert((*current_node));
+
+		SolutionFound = EsSolucion((*current_node).st, final);
+
+		if (!SolutionFound) {
+			bool veoCLB = VeoColaborador((*current_node).st);
+			
+			// Generar hijo actIDLE
+			nodeN3 * child_idle = new nodeN3;
+			nodos_creados.push_back(child_idle);
+			(*current_node).childs.push_back(child_idle);
+
+			(*child_idle).st = apply(actIDLE, (*current_node).st, mapa);
+
+			(*child_idle).last_action = actIDLE;
+			(*child_idle).parent = current_node;
+
+			(*child_idle).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, actIDLE, (*child_idle).st.ultimaOrdenColaborador, mapa);
+			(*child_idle).heuristica = CalculaHeuristica((*child_idle).st, final);
+
+			aux = explored.find((*child_idle));
+
+			if (aux == explored.end()){
+				frontier.push(child_idle);
+			} else {	// Estado repetido en Cerrados
+				if (aux->bateriaGastada > (*child_idle).bateriaGastada){	// Nuevo Mejor Padre
+					int diff = aux->bateriaGastada - (*child_idle).bateriaGastada;
+
+					aux->parent = (*child_idle).parent;
+					aux->bateriaGastada = (*child_idle).bateriaGastada;
+					ActualizaBateriaHijos(aux->childs, diff);
+
+					nodos_creados.pop_back();
+					delete child_idle;
+
+				}
+			}
+
+			
+			if (veoCLB) {
+				if ((*current_node).st.ultimaOrdenColaborador != act_CLB_WALK) {
+					// Genero hijo actCLB_WALK
+					nodeN3 * child_CLBWalk = new nodeN3;
+				
+					(*child_CLBWalk).st = apply(act_CLB_WALK, (*current_node).st, mapa, false);
+
+					nodos_creados.push_back(child_CLBWalk);
+					(*current_node).childs.push_back(child_CLBWalk);
+					
+					(*child_CLBWalk).last_action = act_CLB_WALK;
+					(*child_CLBWalk).parent = current_node;
+
+					(*child_CLBWalk).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, act_CLB_WALK, (*child_CLBWalk).st.ultimaOrdenColaborador, mapa);
+					(*child_CLBWalk).heuristica = CalculaHeuristica((*child_CLBWalk).st, final);
+
+					aux = explored.find((*child_CLBWalk));
+
+					if (aux == explored.end()){
+						frontier.push(child_CLBWalk);
+					} else {	// Estado repetido en Cerrados
+						if (aux->bateriaGastada > (*child_CLBWalk).bateriaGastada){	// Nuevo Mejor Padre
+							int diff = aux->bateriaGastada - (*child_CLBWalk).bateriaGastada;
+
+							aux->parent = (*child_CLBWalk).parent;
+							aux->bateriaGastada = (*child_CLBWalk).bateriaGastada;
+							ActualizaBateriaHijos(aux->childs, diff);
+
+							nodos_creados.pop_back();
+							delete child_CLBWalk;
+
+						}
+					}
+				}
+
+				// Genero hijo actCLB_TURNSR
+				if ((*current_node).st.ultimaOrdenColaborador != act_CLB_TURN_SR) {
+					nodeN3 * child_CLBTurnSr = new nodeN3;
+					nodos_creados.push_back(child_CLBTurnSr);
+					(*current_node).childs.push_back(child_CLBTurnSr);
+
+					(*child_CLBTurnSr).st = apply(act_CLB_TURN_SR, (*current_node).st, mapa, false);
+					
+					(*child_CLBTurnSr).last_action = act_CLB_TURN_SR;
+					(*child_CLBTurnSr).parent = current_node;
+
+					(*child_CLBTurnSr).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, act_CLB_TURN_SR, (*child_CLBTurnSr).st.ultimaOrdenColaborador, mapa);
+					(*child_CLBTurnSr).heuristica = CalculaHeuristica((*child_CLBTurnSr).st, final);
+
+					aux = explored.find((*child_CLBTurnSr));
+
+					if (aux == explored.end()){
+						frontier.push(child_CLBTurnSr);
+					} else {	// Estado repetido en Cerrados
+						if (aux->bateriaGastada > (*child_CLBTurnSr).bateriaGastada){	// Nuevo Mejor Padre
+							int diff = aux->bateriaGastada - (*child_CLBTurnSr).bateriaGastada;
+
+							aux->parent = (*child_CLBTurnSr).parent;
+							aux->bateriaGastada = (*child_CLBTurnSr).bateriaGastada;
+							ActualizaBateriaHijos(aux->childs, diff);
+
+							nodos_creados.pop_back();
+							delete child_CLBTurnSr;
+
+						}
+					}
+
+				}
+
+				if ((*current_node).st.ultimaOrdenColaborador != act_CLB_STOP) {
+					// Genero hijo actCLB_STOP
+					nodeN3 * child_CLBStop = new nodeN3;
+
+					(*child_CLBStop).st = apply(act_CLB_STOP, (*current_node).st, mapa, false);
+
+					nodos_creados.push_back(child_CLBStop);
+					(*current_node).childs.push_back(child_CLBStop);
+
+					(*child_CLBStop).last_action = act_CLB_STOP;
+					(*child_CLBStop).parent = current_node;
+
+					(*child_CLBStop).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, act_CLB_STOP, (*child_CLBStop).st.ultimaOrdenColaborador, mapa);
+					(*child_CLBStop).heuristica = CalculaHeuristica((*child_CLBStop).st, final);
+
+					aux = explored.find((*child_CLBStop));
+
+					if (aux == explored.end()){
+						frontier.push(child_CLBStop);
+					} else {	// Estado repetido en Cerrados
+						if (aux->bateriaGastada > (*child_CLBStop).bateriaGastada){	// Nuevo Mejor Padre
+							int diff = aux->bateriaGastada - (*child_CLBStop).bateriaGastada;
+
+							aux->parent = (*child_CLBStop).parent;
+							aux->bateriaGastada = (*child_CLBStop).bateriaGastada;
+							ActualizaBateriaHijos(aux->childs, diff);
+
+							nodos_creados.pop_back();
+							delete child_CLBStop;
+						}
+					}
+
+				}
+			}
+
+		
+			// Generar hijo actWALK
+			nodeN3 * child_walk = new nodeN3;
+			nodos_creados.push_back(child_walk);
+			(*current_node).childs.push_back(child_walk);
+
+			(*child_walk).st = apply(actWALK, (*current_node).st, mapa);
+
+			(*child_walk).last_action = actWALK;
+			(*child_walk).parent = current_node;
+
+			(*child_walk).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, actWALK, (*child_walk).st.ultimaOrdenColaborador, mapa);
+			(*child_walk).heuristica = CalculaHeuristica((*child_walk).st, final);
+			
+			aux = explored.find((*child_walk));
+
+			if (aux == explored.end()){
+				frontier.push(child_walk);
+			} else {	// Estado repetido en Cerrados
+				if (aux->bateriaGastada > (*child_walk).bateriaGastada){	// Nuevo Mejor Padre
+					int diff = aux->bateriaGastada - (*child_walk).bateriaGastada;
+
+					aux->parent = (*child_walk).parent;
+					aux->bateriaGastada = (*child_walk).bateriaGastada;
+					ActualizaBateriaHijos(aux->childs, diff);
+
+					nodos_creados.pop_back();
+					delete child_walk;
+				}
+			}
+		
+			// Generar hijo actRUN
+			nodeN3 * child_run = new nodeN3;
+			nodos_creados.push_back(child_run);
+			(*current_node).childs.push_back(child_run);
+
+			(*child_run).st = apply(actRUN, (*current_node).st, mapa);
+
+			(*child_run).last_action = actRUN;
+			(*child_run).parent = current_node;
+
+			(*child_run).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, actRUN, (*child_run).st.ultimaOrdenColaborador, mapa);
+			(*child_run).heuristica = CalculaHeuristica((*child_run).st, final);
+			
+			aux = explored.find((*child_run));
+
+			if (aux == explored.end()){
+				frontier.push(child_run);
+			} else {	// Estado repetido en Cerrados
+				if (aux->bateriaGastada > (*child_run).bateriaGastada){	// Nuevo Mejor Padre
+					int diff = aux->bateriaGastada - (*child_run).bateriaGastada;
+
+					aux->parent = (*child_run).parent;
+					aux->bateriaGastada = (*child_run).bateriaGastada;
+					ActualizaBateriaHijos(aux->childs, diff);
+
+					nodos_creados.pop_back();
+					delete child_run;
+				}
+			}
+
+			// Generar hijo actTURN_L
+			nodeN3 * child_turnl = new nodeN3;
+			nodos_creados.push_back(child_turnl);
+			(*current_node).childs.push_back(child_turnl);
+
+			(*child_turnl).st = apply(actTURN_L, (*current_node).st, mapa);
+
+			(*child_turnl).last_action = actTURN_L;
+			(*child_turnl).parent = current_node;
+
+			(*child_turnl).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, actTURN_L, (*child_turnl).st.ultimaOrdenColaborador, mapa);
+			(*child_turnl).heuristica = CalculaHeuristica((*child_turnl).st, final);
+			
+			aux = explored.find((*child_turnl));
+
+			if (aux == explored.end()){
+				frontier.push(child_turnl);
+			} else {	// Estado repetido en Cerrados
+				if (aux->bateriaGastada > (*child_turnl).bateriaGastada){	// Nuevo Mejor Padre
+					int diff = aux->bateriaGastada - (*child_turnl).bateriaGastada;
+
+					aux->parent = (*child_turnl).parent;
+					aux->bateriaGastada = (*child_turnl).bateriaGastada;
+					ActualizaBateriaHijos(aux->childs, diff);
+
+					nodos_creados.pop_back();
+					delete child_turnl;
+
+				}
+			}
+
+			// Generar hijo actTURN_SR
+			nodeN3 * child_turnsr = new nodeN3;
+			nodos_creados.push_back(child_turnsr);
+			(*current_node).childs.push_back(child_turnsr);
+
+			(*child_turnsr).st = apply(actTURN_SR, (*current_node).st, mapa);
+
+			(*child_turnsr).last_action = actTURN_SR;
+			(*child_turnsr).parent = current_node;
+
+			(*child_turnsr).bateriaGastada = (*current_node).bateriaGastada + CalculaCosteAccion((*current_node).st, actTURN_SR, (*child_turnsr).st.ultimaOrdenColaborador, mapa);
+			(*child_turnsr).heuristica = CalculaHeuristica((*child_turnsr).st, final);
+
+			aux = explored.find((*child_turnsr));
+
+			if (aux == explored.end()){
+				frontier.push(child_turnsr);
+			} else {	// Estado repetido en Cerrados
+				if (aux->bateriaGastada > (*child_turnsr).bateriaGastada){	// Nuevo Mejor Padre
+					int diff = aux->bateriaGastada - (*child_turnsr).bateriaGastada;
+
+					aux->parent = (*child_turnsr).parent;
+					aux->bateriaGastada = (*child_turnsr).bateriaGastada;
+					ActualizaBateriaHijos(aux->childs, diff);
+
+					nodos_creados.pop_back();
+					delete child_turnsr;
+
+				}
+			}
+		}
+
+
+		if (!SolutionFound and !frontier.empty()){
+			current_node = frontier.top();
+			while(!frontier.empty() and explored.find((*current_node)) != explored.end()){
+				frontier.pop();
+				if(!frontier.empty()){
+					current_node = frontier.top();
+				}
+			}
+
+		}
+	}
+
+	//cout << "Nº iter:\t" << niter << endl;
+
+	if(SolutionFound){
+		nodeN3 * cn = current_node;
+		while ((*cn).parent != nullptr){
+			plan.push_front((*cn).last_action);
+			
+			cn = (*cn).parent;
+		}
+		
+		cout << "Encontrado un plan: ";
+		PintaPlan(plan);
+	}
+	
+	// Liberamos memoria dinamica
+	for (auto it = nodos_creados.begin(); it != nodos_creados.end(); it++){
+		delete (*it);
+	}
+
+	return plan;
+}
+
+int CalculaHeuristica (const stateN3 & st, const ubicacion & final) {
+	//return (H2(st, final));
+	return(HeuristicaNormaMaximo(st, final));
 }
